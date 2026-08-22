@@ -1,4 +1,4 @@
-# Pharmacovigilance Alert System (`pharma-recall-platform`)
+# Pharmacovigilance Alert System
 
 > **Modulo de Farmacovigilancia y Gestión de Retiro de Lotes**
 > Sistema desarrollado para la identificación, filtrado y notificación de clientes afectados por el retiro de medicamentos o lotes específicos en una farmacia magistral (Compounding Pharmacy).
@@ -7,11 +7,11 @@
 
 ## 1. Propósito y Alcance
 
-### Propósito
+### 1.1 Propósito
 
 Proporcionar una solución web eficiente y segura que permita al equipo de farmacovigilancia rastrear compras de medicamentos asociadas a un número de lote determinado (ejemplo: lote `951357`) en un rango de fechas y despachar alertas por correo electrónico/SMS a los compradores afectados.
 
-### Alcance Funcional
+### 1.2 Alcance Funcional
 
 - **Autenticación Protegida:** Módulo exclusivo para personal autorizado (`/pharmacovigilance/login`).
 - **Búsqueda y Filtrado:** Consulta por número de lote (requerido) y rango de fechas (por defecto: últimos 30 días).
@@ -24,7 +24,7 @@ Proporcionar una solución web eficiente y segura que permita al equipo de farma
 
 ---
 
-## 2. Arquitectura Propuesta
+## 2 Arquitectura Propuesta
 
 El proyecto sigue una arquitectura limpia basada en **MVC + API-Driven Design**:
 
@@ -41,30 +41,32 @@ HTTP / REST API (Bearer Token - Sanctum)
   MySQL (Relational DB)
 ```
 
-### Principios Clave de Diseño
+### 2.1 Principios Clave de Diseño
 
 1. **Controllers Delgados:** Delegación de reglas de negocio a Form Requests y Services/Actions.
 2. **Prevención de N+1:** *Eager Loading* explícito en consultas de órdenes y medicamentos.
 3. **Escalabilidad de Roles:** Verificación de permisos apoyada en caché para evitar sobrecargar MySQL en peticiones transaccionales.
+4. **Tipado estricto en frontend:** Componentes Vue en TypeScript (`<script setup lang="ts">`) para detectar errores antes de runtime.
 
 ---
 
-## 3. Stack Tecnológico
+## 3 Stack Tecnológico
 
 - **Backend:** PHP 8.2+ / Laravel 12 (API REST, Sanctum Auth)
-- **Frontend:** Vue 3 (Composition API / Script Setup) + Vite
+- **Frontend:** Vue 3 (Composition API / Script Setup) + TypeScript + Vite
 - **Componentes UI & Estilos:** Shadcn Vue + Tailwind CSS
 - **Base de Datos:** MySQL 8.0+
 - **Manejo de Tareas / Colas:** Laravel Queues (para envío diferido de mails/alertas)
+- **Gestor de Paquetes (Frontend):** Yarn 4 (Berry)
 - **Control de Versiones:** Git & GitHub
 
 ---
 
-## 4. Contrato de API (REST API Endpoints)
+## 4 Contrato de API (REST API Endpoints)
 
 Todos los endpoints retornan respuestas en formato `application/json` y están prefijados por `/api/v1`.
 
-### 4.1. Autenticación
+### 4.1 Autenticación
 
 #### Iniciar Sesión
 
@@ -99,7 +101,7 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
 
 ---
 
-### 4.2. Búsqueda y Órdenes
+### 4.2 Búsqueda y Órdenes
 
 #### Listar / Buscar Órdenes por Lote
 
@@ -144,7 +146,7 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
 
 ---
 
-### 4.3. Despacho de Alertas
+### 4.3 Despacho de Alertas
 
 #### Enviar Alerta
 
@@ -171,70 +173,114 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
 
 ---
 
-## 5. Instrucciones de Instalación y Configuración
+## 5 Instrucciones de Instalación y Configuración
 
-### Requisitos Previos
+### 5.1 Requisitos Previos
 
 - PHP >= 8.2
 - Composer >= 2.x
-- Node.js >= 18.x & NPM
+- Node.js >= 18.x & Yarn
 - MySQL >= 8.0
 
-### Pasos de Instalación
+### 5.2 Pasos de Instalación
 
-1. **Clonar el repositorio e ingresar al proyecto:**
+#### - **Clonar el repositorio e ingresar al proyecto:**
 
-   ```bash
+```bash
    git clone git@github.com:jpachecox/pharma-recall-platform.git
    cd pharma-recall-platform
-   ```
+```
 
-2. **Instalar dependencias de PHP:**
+#### - **Instalar dependencias de PHP:**
 
-   ```bash
+```bash
    composer install
-   ```
+```
 
-3. **Instalar dependencias de Frontend (Vue 3 + Shadcn Vue):**
+#### - **Instalar dependencias de Frontend (Vue 3 + TypeScript + Shadcn Vue):**
 
-   ```bash
-   npm install
-   ```
+```bash
+   yarn install
+```
 
-4. **Configurar el archivo de entorno `.env`:**
+#### - **Configurar el archivo de entorno `.env`:**
 
-   ```bash
+```bash
    cp .env.example .env
    php artisan key:generate
-   ```
+```
 
-5. **Configurar la base de datos en `.env`:**
+#### - **Configurar la base de datos en `.env`:**
 
-   ```env
+```env
    DB_CONNECTION=mysql
    DB_HOST=127.0.0.1
    DB_PORT=3306
    DB_DATABASE=pharma_recall_platform
    DB_USERNAME=root
    DB_PASSWORD=
-   ```
+```
 
-6. **Ejecutar migraciones y poblar la base de datos con Seeders:**
+#### - **Ejecutar migraciones y poblar la base de datos con Seeders:**
 
-   ```bash
+```bash
    php artisan migrate:fresh --seed
-   ```
+```
 
-7. **Compilar assets o levantar el servidor de desarrollo Vite:**
+#### - **Compilar assets o levantar el servidor de desarrollo Vite:**
 
-   ```bash
-   npm run dev
-   ```
+```bash
+   yarn dev
+```
 
-8. **Iniciar el servidor local de Laravel:*
+#### - **Iniciar el servidor local de Laravel:**
 
-   ```bash
+```bash
    php artisan serve
-   ```
+```
 
 El backend estará disponible en `http://127.0.0.1:8000` y las rutas API respondiendo bajo `/api/v1/`.
+
+- Scripts útiles (Frontend)
+
+```bash
+yarn dev          # servidor de desarrollo Vite
+yarn build        # build de producción
+yarn type-check   # validación de tipos TypeScript (vue-tsc), sin generar archivos
+```
+
+---
+
+## 6 Flujo de Trabajo (Gitflow)
+
+- **`main`**: rama de producción. Solo recibe merges vía PR desde `develop` (release).
+- **`develop`**: rama de integración. Todo el trabajo diario se mergea aquí.
+- **Ramas de trabajo:** `type/nombre-corto`, donde `type` sigue [Conventional Commits](https://www.conventionalcommits.org/) (`feat`, `fix`, `refactor`, `test`, `docs`, `chore`). Ejemplo: `feat/orders-search-endpoint`.
+- **Issues:** se crean con los templates de `.github/ISSUE_TEMPLATE/` (`task`, `bug`, `feature`).
+- **Pull Requests:** siguen `.github/PULL_REQUEST_TEMPLATE.md`, apuntan a `develop` por defecto.
+- **Changelog:** cada cambio relevante se agrega a `CHANGELOG.md` bajo `[Unreleased]` antes de mergear a `develop`,
+  siguiendo [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
+
+---
+
+## 7 Testing
+
+```bash
+php artisan test
+```
+
+Cobertura mínima esperada: autenticación, búsqueda/filtros, orders (listado, detalle, 404, paginación), alerts (envío, validación, registro, fallo de envío).
+
+---
+
+## 8 Decisiones de Arquitectura y Supuestos
+
+- El envío de alertas se marca como exitoso solo si el email realmente se despachó (no se registra una alerta "fantasma" ante un fallo de envío).
+- La búsqueda de órdenes se filtra en MySQL, no en PHP, para evitar traer datos innecesarios y prevenir N+1 mediante eager loading explícito.
+- Roles y permisos (RBAC) están fuera del MVP obligatorio; se documentan como bonus en `ROLES_PERMISSIONS_SCHEMA.md`
+
+---
+
+## 9 Credenciales de Prueba
+
+_(Completar tras correr el seeder — usuario/contraseña generados en `DatabaseSeeder`.)
