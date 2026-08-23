@@ -14,16 +14,18 @@ return new class extends Migration
         Schema::create('alerts', function (Blueprint $table) {
             $table->id();
             $table->string('lot_number', 50);
-            $table->string('channel', 20)->default('email');
+            $table->enum('channel', ['email', 'sms', 'whatsapp'])->default('email');
             $table->enum('status', ['sent', 'failed', 'queued', 'pending'])->default('queued');
             $table->text('message_body')->nullable();
             $table->index(['lot_number', 'sent_at'], 'idx_alerts_lot_sent');
-            $table->timestamp('sent_at')->useCurrent();
+            $table->timestamp('sent_at')->nullable();
             $table->timestamps();
-            
-            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
-            $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
+
+            $table->foreignId('customer_id')->constrained('customers')->restrictOnDelete();
+            $table->foreignId('order_id')->constrained('orders')->restrictOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+
+            $table->unique(['customer_id', 'order_id', 'lot_number', 'channel'], 'uq_alert_dedupe');
         });
     }
 

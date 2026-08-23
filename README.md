@@ -73,26 +73,23 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
 - **Endpoint:** `POST /api/v1/login`
 - **Request:**
 
-  ```json
+```json
   {
-    "username": "pharm_admin",
+    "email": "admin@farmacia.com",
     "password": "SecretPassword123!"
   }
-  ```
+```
 
 - **Response (200 OK):**
 
-  ```json
+```json
   {
-    "success": true,
-    "message": "Autenticación exitosa",
-    "data": {
-      "user": { "id": 1, "username": "pharm_admin", "email": "admin@pharmacy.com" },
-      "access_token": "1|token_hash_value",
-      "token_type": "Bearer"
-    }
+    "message": "Inicio de sesión exitoso.",
+    "access_token": "1|token_hash_value",
+    "token_type": "Bearer",
+    "user": { "id": 1, "name": "Administrador Farmacovigilancia", "email": "admin@farmacia.com" }
   }
-  ```
+```
 
 #### Cierre de Sesión
 
@@ -172,15 +169,6 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
   ```
 
 ---
-
-## 5 Instrucciones de Instalación y Configuración
-
-### 5.1 Requisitos Previos
-
-- PHP >= 8.2
-- Composer >= 2.x
-- Node.js >= 18.x & Yarn
-- MySQL >= 8.0
 
 ### 5.2 Pasos de Instalación
 
@@ -263,7 +251,7 @@ yarn type-check   # validación de tipos TypeScript (vue-tsc), sin generar archi
 
 ---
 
-## 7 Testing
+### 7 Testing
 
 ```bash
 php artisan test

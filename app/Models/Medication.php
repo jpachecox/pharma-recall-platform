@@ -15,7 +15,11 @@ class Medication extends Model
 
     protected $primaryKey = 'id';
 
-    /** @var array<int, string> */
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
     protected $fillable = [
         'name',
         'description',
@@ -29,7 +33,13 @@ class Medication extends Model
                     ->withTimestamps();
     }
 
-    // Filtra medicamentos por coincidencia exacta o parcial de lote
+    /**
+     * Filtra medicamentos por coincidencia exacta o parcial de lote
+     *
+     * @param  Builder  $query
+     * @param  string  $lotNumber
+     * @return Builder
+     */
     public function scopeSearchByLot(Builder $query, string $lotNumber): Builder
     {
         return $query->where('lot_number', 'LIKE', "%{$lotNumber}%");

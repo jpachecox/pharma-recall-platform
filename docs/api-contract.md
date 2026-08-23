@@ -1,8 +1,14 @@
 # Contrato de API v1 — Pharma Recall Platform
 
-**Versión:** 1.0.0
+**Versión:** 1.1.0
 **Prefijo base:** `/api/v1`
 **Autenticación:** Bearer Token (Laravel Sanctum)
+
+> Este documento refleja únicamente los endpoints implementados en el
+> código actual, con los nombres de campo reales del esquema de base de
+> datos (`lot_number`, `purchase_date`, etc). Los endpoints aún no
+> construidos están listados al final en "Pendientes" para no perder de
+> vista el scope original del PDF de la prueba.
 
 ---
 
@@ -28,26 +34,9 @@ Petición procesada correctamente.
 }
 ```
 
-#### 201 Created
-
-Recurso creado con éxito.
-
-```json
-{
-  "message": "Resource created successfully.",
-  "data": {}
-}
-```
-
 #### 202 Accepted
 
-Petición recibida y aceptada para procesamiento asíncrono (ej. colas/jobs).
-
-```json
-{
-  "message": "Request accepted and queued for processing."
-}
-```
+Petición recibida y aceptada para procesamiento asíncrono (ej. colas/jobs). Reservado para `POST /alerts/send` (pendiente).
 
 #### 204 No Content
 
@@ -56,8 +45,6 @@ La petición se completó con éxito pero no retorna cuerpo en la respuesta.
 ### Formato de Errores Genéricos
 
 #### 400 Bad Request
-
-La petición está mal formada o contiene parámetros inválidos.
 
 ```json
 {
@@ -77,8 +64,6 @@ Token de autenticación no proporcionado, expirado o inválido.
 
 #### 403 Forbidden
 
-El usuario autenticado no posee los permisos necesarios para realizar esta acción.
-
 ```json
 {
   "message": "This action is unauthorized."
@@ -86,8 +71,6 @@ El usuario autenticado no posee los permisos necesarios para realizar esta acci�
 ```
 
 #### 404 Not Found
-
-El recurso o ruta solicitada no existe.
 
 ```json
 {
@@ -97,8 +80,6 @@ El recurso o ruta solicitada no existe.
 
 #### 405 Method Not Allowed
 
-El método HTTP utilizado (GET, POST, PUT, DELETE) no está permitido para el endpoint.
-
 ```json
 {
   "message": "The HTTP method is not supported for this route."
@@ -107,7 +88,7 @@ El método HTTP utilizado (GET, POST, PUT, DELETE) no está permitido para el en
 
 #### 409 Conflict
 
-Conflicto con el estado actual del recurso (ej. registro duplicado).
+Conflicto con el estado actual del recurso (ej. alerta duplicada — ver constraint `uq_alert_dedupe`).
 
 ```json
 {
@@ -117,22 +98,20 @@ Conflicto con el estado actual del recurso (ej. registro duplicado).
 
 #### 422 Unprocessable Entity
 
-Error de validación en los campos enviados en el body de la petición.
+Error de validación en los campos enviados en el body o query de la petición.
 
 ```json
 {
   "message": "The given data was invalid.",
   "errors": {
-    "batch_number": [
-      "The batch_number field is required."
+    "lot": [
+      "The lot field is required."
     ]
   }
 }
 ```
 
 #### 429 Too Many Requests
-
-Se ha superado el límite de peticiones permitidas (Rate Limiting).
 
 ```json
 {
@@ -141,8 +120,6 @@ Se ha superado el límite de peticiones permitidas (Rate Limiting).
 ```
 
 #### 500 Internal Server Error
-
-Error no controlado en el servidor.
 
 ```json
 {
@@ -175,12 +152,12 @@ Inicia sesión y genera un token de acceso Bearer.
 
 ```json
 {
-  "message": "Login successful.",
+  "message": "Inicio de sesión exitoso.",
   "access_token": "1|qX83j...token_string...",
   "token_type": "Bearer",
   "user": {
     "id": 1,
-    "name": "Administrador",
+    "name": "Administrador Farmacovigilancia",
     "email": "admin@farmacia.com"
   }
 }
@@ -190,7 +167,7 @@ Inicia sesión y genera un token de acceso Bearer.
 
 ```json
 {
-  "message": "The provided credentials are incorrect."
+  "message": "Las credenciales proporcionadas son incorrectas."
 }
 ```
 
@@ -203,6 +180,7 @@ Inicia sesión y genera un token de acceso Bearer.
     "email": ["The email field is required."]
   }
 }
+```
 
 ---
 
@@ -218,7 +196,7 @@ Revoca el token actual del usuario autenticado.
 
 ```json
 {
-  "message": "Successfully logged out."
+  "message": "Sesión cerrada correctamente."
 }
 ```
 
@@ -232,19 +210,23 @@ Revoca el token actual del usuario autenticado.
 
 ---
 
-## 3. Endpoints de Órdenes (Orders)
+## 3. Endpoints de Medicamentos (Medications)
 
-### GET /orders
+### GET /medications/search
 
-Obtiene un listado paginado de órdenes de compra.
+Busca medicamentos por número de lote (coincidencia parcial). Si se envía
+un rango de fechas, filtra únicamente los medicamentos que tuvieron al
+menos una orden de compra dentro de ese rango — confirma que el lote
+realmente circuló en la ventana investigada.
 
 **Acceso:** Requiere Autenticación
 
 **Query Params:**
 
-- `page` (int, opcional): Número de página (default: 1).
-- `per_page` (int, opcional): Registros por página (default: 15).
-- `status` (string, opcional): Filtrar por estado (`pending`, `completed`, `recalled`).
+- `lot` (string, **requerido**): número de lote a buscar.
+- `start_date` (date, opcional): inicio del rango de compra. Default: hace 30 días.
+- `end_date` (date, opcional): fin del rango de compra. Default: hoy. Debe ser `>= start_date`.
+- `per_page` (int, opcional): registros por página (default: 15).
 
 **Respuestas:**
 
@@ -254,23 +236,24 @@ Obtiene un listado paginado de órdenes de compra.
 {
   "data": [
     {
-      "id": 101,
-      "order_number": "ORD-2026-001",
-      "customer_id": 45,
-      "status": "completed",
-      "total_amount": 150.50,
-      "created_at": "2026-08-23T04:00:00Z"
+      "id": 1,
+      "name": "Paracetamol 500mg (Afectado)",
+      "description": "Lote bajo investigación de farmacovigilancia",
+      "lot_number": "951357",
+      "orders_count": 8,
+      "created_at": "2026-08-22T20:43:06Z",
+      "updated_at": "2026-08-22T20:43:06Z"
     }
   ],
   "links": {
-    "first": "http://localhost:8000/api/v1/orders?page=1",
-    "last": "http://localhost:8000/api/v1/orders?page=5"
+    "first": "http://localhost:8000/api/v1/medications/search?lot=951357&page=1",
+    "last": "http://localhost:8000/api/v1/medications/search?lot=951357&page=1"
   },
   "meta": {
     "current_page": 1,
-    "last_page": 5,
+    "last_page": 1,
     "per_page": 15,
-    "total": 75
+    "total": 1
   }
 }
 ```
@@ -283,73 +266,34 @@ Obtiene un listado paginado de órdenes de compra.
 }
 ```
 
----
-
-### GET /orders/{id}
-
-Obtiene el detalle de una orden de compra específica.
-
-**Acceso:** Requiere Autenticación
-
-**Parámetros de Ruta:** `id` (integer)
-
-**Respuestas:**
-
-#### 3.3 **200 OK**
+#### 3.3 **422 Unprocessable Entity**
 
 ```json
 {
-  "data": {
-    "id": 101,
-    "order_number": "ORD-2026-001",
-    "customer": {
-      "id": 45,
-      "name": "Farmacia San José",
-      "email": "contacto@sanjose.com"
-    },
-    "items": [
-      {
-        "id": 1,
-        "product_name": "Paracetamol 500mg",
-        "batch_number": "LOT-9928",
-        "quantity": 10,
-        "unit_price": 15.05
-      }
-    ],
-    "total_amount": 150.50,
-    "status": "completed",
-    "created_at": "2026-08-23T04:00:00Z"
+  "message": "The given data was invalid.",
+  "errors": {
+    "lot": ["El número de lote es obligatorio."]
   }
 }
 ```
 
-#### 3.4 **401 Unauthorized**
-
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
-#### 3.5 **404 Not Found**
-
-```json
-{
-  "message": "Order not found."
-}
-```
-
 ---
 
-## 4. Endpoints de Clientes (Customers)
+## 4. Endpoints de Órdenes (Orders)
 
-### GET /customers/{id}
+### GET /orders
 
-Obtiene los detalles de una farmacia/cliente.
+Obtiene un listado paginado de órdenes que contienen un medicamento con
+el número de lote indicado, dentro de un rango de fecha de compra.
 
 **Acceso:** Requiere Autenticación
 
-**Parámetros de Ruta:** `id` (integer)
+**Query Params:**
+
+- `lot` (string, **requerido**): número de lote a buscar.
+- `start_date` (date, opcional): default hace 30 días.
+- `end_date` (date, opcional): default hoy. Debe ser `>= start_date`.
+- `per_page` (int, opcional): registros por página (default: 15).
 
 **Respuestas:**
 
@@ -357,13 +301,37 @@ Obtiene los detalles de una farmacia/cliente.
 
 ```json
 {
-  "data": {
-    "id": 45,
-    "name": "Farmacia San José",
-    "email": "contacto@sanjose.com",
-    "phone": "+573001234567",
-    "address": "Calle 10 #15-20",
-    "created_at": "2026-01-10T10:00:00Z"
+  "data": [
+    {
+      "id": 3,
+      "purchase_date": "2026-08-05T14:30:00Z",
+      "customer": {
+        "id": 12,
+        "name": "María Alvear",
+        "email": "maria.alvear@example.com",
+        "phone": "+573001234567"
+      },
+      "medications": [
+        {
+          "id": 1,
+          "name": "Paracetamol 500mg (Afectado)",
+          "lot_number": "951357",
+          "quantity": 2,
+          "unit_price": "12500.00"
+        }
+      ],
+      "alerts_sent": 1
+    }
+  ],
+  "links": {
+    "first": "http://localhost:8000/api/v1/orders?lot=951357&page=1",
+    "last": "http://localhost:8000/api/v1/orders?lot=951357&page=1"
+  },
+  "meta": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 15,
+    "total": 8
   }
 }
 ```
@@ -376,67 +344,25 @@ Obtiene los detalles de una farmacia/cliente.
 }
 ```
 
-#### 4.3 **404 Not Found**
-
-```json
-{
-  "message": "Customer not found."
-}
-```
-
----
-
-## 5. Endpoints de Alertas (Alerts)
-
-### POST /alerts/send
-
-Desencadena el proceso de notificación masiva de un recall a los clientes afectados por número de lote.
-
-**Acceso:** Requiere Autenticación
-
-**Body Request:**
-
-```json
-{
-  "recall_id": 12,
-  "batch_number": "LOT-9928",
-  "message": "Urgent health alert for batch LOT-9928. Please halt distribution."
-}
-```
-
-**Respuestas:**
-
-#### 5.1 **202 Accepted**
-
-```json
-{
-  "message": "Alerts queued successfully for delivery.",
-  "data": {
-    "recall_id": 12,
-    "batch_number": "LOT-9928",
-    "recipients_count": 18,
-    "queued_at": "2026-08-23T04:15:00Z"
-  }
-}
-```
-
-#### 5.2 **401 Unauthorized**
-
-```json
-{
-  "message": "Unauthenticated."
-}
-```
-
-#### 5.2 **422 Unprocessable Entity:** Error en los datos de entrada
+#### 4.3 **422 Unprocessable Entity**
 
 ```json
 {
   "message": "The given data was invalid.",
   "errors": {
-    "batch_number": [
-      "The batch_number field is required."
-    ]
+    "lot": ["El número de lote es obligatorio."]
   }
 }
 ```
+
+---
+
+## 5. Pendientes (no implementados aún)
+
+Estos endpoints estaban en el scope original del PDF de la prueba pero
+todavía no tienen controller/ruta. Se documentan aquí solo como
+referencia de lo que falta, no como contrato vigente:
+
+- `GET /orders/{id}` — detalle de una orden puntual (3.4 "View Order").
+- `GET /customers/{id}` — detalle de un cliente (3.4 "View Buyer").
+- `POST /alerts/send` — envío de alerta individual o masiva por email/SMS/WhatsApp (3.5), usando `App\Models\Alert` y el enum `AlertChannel` (`email`, `sms`, `whatsapp`) ya existentes.
