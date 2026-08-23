@@ -10,6 +10,7 @@ enum AlertStatus: string
 {
     case PENDING = 'pending';
     case SENT = 'sent';
+    case QUEUED = 'queued';
     case FAILED = 'failed';
 
     /**
@@ -20,6 +21,7 @@ enum AlertStatus: string
         return match($this) {
             self::PENDING => 'Pendiente',
             self::SENT => 'Enviado',
+            self::QUEUED => 'En cola',
             self::FAILED => 'Fallido',
         };
     }

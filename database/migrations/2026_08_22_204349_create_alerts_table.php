@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('lot_number', 50);
             $table->string('channel', 20)->default('email');
-            $table->enum('status', ['sent', 'failed', 'queued'])->default('sent');
+            $table->enum('status', ['sent', 'failed', 'queued', 'pending'])->default('queued');
             $table->text('message_body')->nullable();
             $table->index(['lot_number', 'sent_at'], 'idx_alerts_lot_sent');
             $table->timestamp('sent_at')->useCurrent();
