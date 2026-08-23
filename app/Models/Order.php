@@ -18,12 +18,21 @@ class Order extends Model
 
     protected $primaryKey = 'id';
 
-    /** @var array<int, string> */
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
     protected $fillable = [
         'customer_id',
         'purchase_date',
     ];
 
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
     protected $casts = [
         'purchase_date' => 'datetime',
     ];
@@ -75,8 +84,8 @@ class Order extends Model
      * @return Builder
      */
     public function scopeWherePurchaseDateBetween(
-        Builder $query, 
-        ?string $startDate = null, 
+        Builder $query,
+        ?string $startDate = null,
         ?string $endDate = null
     ): Builder
     {
@@ -113,5 +122,27 @@ class Order extends Model
                 $q->select('medications.id', 'name', 'description', 'lot_number');
             }
         ]);
+    }
+
+    /**
+     * Scope unificado para buscar órdenes por número de lote y rango de fechas de compra.
+     * Carga ansiosa para evitar el problema N+1.
+     *
+     * @param Builder $query
+     * @param string $lotNumber
+     * @param mixed $startDate
+     * @param mixed $endDate
+     * @return Builder
+     */
+    public function scopeByLotAndDateRange(
+        Builder $query,
+        string $lotNumber,
+        ?string $startDate = null,
+        ?string $endDate = null
+    ): Builder {
+        return $query
+            ->whereLotNumber($lotNumber)
+            ->wherePurchaseDateBetween($startDate, $endDate)
+            ->with(['customer', 'medications']);
     }
 }

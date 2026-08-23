@@ -17,7 +17,11 @@ class Alert extends Model
 
     protected $primaryKey = 'id';
 
-    /** @var array<int, string> */
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
     protected $fillable = [
         'customer_id',
         'order_id',
@@ -29,6 +33,11 @@ class Alert extends Model
         'sent_at',
     ];
 
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
     protected $casts = [
         'channel' => AlertChannel::class,
         'status' => AlertStatus::class,
@@ -63,25 +72,31 @@ class Alert extends Model
     }
 
     /**
-     * Filtra alertas por estado de forma condicional.
-     * Acepta tanto un string ('pending') como una instancia de AlertStatus.
+     * Normaliza un valor string|enum a su valor primitivo, validando contra el enum indicado.
      *
-     * @param  Builder  $query
-     * @param  AlertStatus|string|null  $status
-     * @return Builder
+     * @param string $enumClass
+     * @param \BackedEnum|string $value
+     * @return string
      */
-    public function scopeStatus(Builder $query, AlertStatus|string|null $status): Builder
+    private function resolveEnumValue(string $enumClass, \BackedEnum|string $value): string
     {
-        return $query->when($status, function (Builder $q, AlertStatus|string $value) {
-            $statusValue = $value instanceof AlertStatus ? $value->value : $value;
-
-            return $q->where('status', $statusValue);
-        });
+        return ($value instanceof $enumClass ? $value : $enumClass::from($value))->value;
     }
 
     /**
-     * Filtra alertas por canal de envío.
-     * Acepta tanto un string ('email') como una instancia de AlertChannel.
+     * Filtra alertas por estado de forma condicional y segura.
+     *
+     * @param  Builder  $query
+     * @param  AlertStatus|string  $status
+     * @return Builder
+     */
+    public function scopeStatus(Builder $query, AlertStatus|string $status): Builder
+    {
+        return $query->where('status', $this->resolveEnumValue(AlertStatus::class, $status));
+    }
+
+    /**
+     * Filtra alertas por canal de envío de forma condicional y segura.
      *
      * @param  Builder  $query
      * @param  AlertChannel|string  $channel
@@ -89,8 +104,6 @@ class Alert extends Model
      */
     public function scopeByChannel(Builder $query, AlertChannel|string $channel): Builder
     {
-        $channelValue = $channel instanceof AlertChannel ? $channel->value : $channel;
-
-        return $query->where('channel', $channelValue);
+        return $query->where('channel', $this->resolveEnumValue(AlertChannel::class, $channel));
     }
 }

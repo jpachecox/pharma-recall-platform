@@ -15,7 +15,11 @@ class Customer extends Model
 
     protected $primaryKey = 'id';
 
-    /** @var array<int, string> */
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
     protected $fillable = [
         'name',
         'email',
@@ -42,8 +46,10 @@ class Customer extends Model
     public function scopeSearch(Builder $query, string $str): Builder
     {
         return $query->where(function (Builder $q) use ($str) {
-            $q->where('name', 'LIKE', "%{$str}%")
-            ->orWhere('email', 'LIKE', "%{$str}%");
+            $escaped = addcslashes($str, '%_');
+
+            $q->where('name', 'LIKE', "%{$escaped}%")
+            ->orWhere('email', 'LIKE', "%{$escaped}%");
         });
     }
 }
