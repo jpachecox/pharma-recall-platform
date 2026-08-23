@@ -1,0 +1,231 @@
+openapi: 3.0.3
+info:
+  title: Pharma Recall Platform API
+  description: Contrato de API v1 para la plataforma de alertas y retiros de medicamentos.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Servidor de Desarrollo Local
+
+paths:
+  /orders:
+    get:
+      summary: Listar órdenes de compra
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Lista paginada de órdenes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+
+  /orders/{id}:
+    get:
+      summary: Obtener detalle de una orden
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detalle de la orden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrderDetail'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /customers/{id}:
+    get:
+      summary: Obtener datos de un cliente
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Información del cliente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Customer'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /alerts/send:
+    post:
+      summary: Enviar alertas de recall
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recall_id
+                - batch_number
+                - message
+              properties:
+                recall_id:
+                  type: integer
+                  example: 12
+                batch_number:
+                  type: string
+                  example: "LOT-9928"
+                message:
+                  type: string
+                  example: "Alerta sanitaria urgente para el lote LOT-9928."
+      responses:
+        '202':
+          description: Alertas procesadas o encoladas correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Alertas encoladas correctamente para su envío."
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '422':
+          $ref: '#/components/responses/422ValidationError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    '401Unauthorized':
+      description: No autenticado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            message: "Unauthenticated."
+    '404NotFound':
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            message: "Recurso no encontrado."
+    '422ValidationError':
+      description: Error de validación
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Los datos proporcionados no son válidos."
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_number:
+          type: string
+        customer_id:
+          type: integer
+        status:
+          type: string
+        total_amount:
+          type: number
+
+    OrderDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_number:
+          type: string
+        customer:
+          $ref: '#/components/schemas/Customer'
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_name:
+                type: string
+              batch_number:
+                type: string
+              quantity:
+                type: integer
+              unit_price:
+                type: number
