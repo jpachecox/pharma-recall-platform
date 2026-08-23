@@ -18,6 +18,8 @@ y este proyecto usa [Conventional Commits](https://www.conventionalcommits.org/)
 
 ### Changed
 
+- **PHV-007**: `docs/api-contract.md` y `docs/openapi.yaml` reescritos para reflejar únicamente los endpoints implementados y los nombres de campo reales del esquema (`lot_number`, `purchase_date`, `quantity`, `unit_price`), eliminando referencias a un contrato genérico (`order_number`, `status`, `total_amount`, `batch_number` después de corregir las migraciones.
+
 ### Removed
 
 ### Fixed
@@ -29,3 +31,8 @@ y este proyecto usa [Conventional Commits](https://www.conventionalcommits.org/)
 - **PHV-004**: `AlertFactory` — `status`/`sent_at` coherentes entre sí, `customer_id` derivado del dueño real de la orden
 - **PHV-004**: `AlertFactory` — agregado el estado `queued()`, faltante tras sumar `AlertStatus::QUEUED` al enum
 - **PHV-005**: Modelo `User` actualizado con el trait `HasApiTokens` y `UserFactory` ajustado para incluir el campo `username`
+- **PHV-007**: `alerts.sent_at` — se quita `useCurrent()` y la columna pasa a `nullable()`; antes toda alerta quedaba marcada como "enviada" desde su creación sin importar su `status` real (`queued`/`pending`/`failed`).
+- **PHV-007**: `alerts`/`orders` — `customer_id`/`order_id` cambian de `onDelete('cascade')` a `restrictOnDelete()` para no perder el historial de pedidos y alertas (evidencia de notificación de recall) al eliminar un cliente.
+- **PHV-007**: `order_items` — agregado `unique(['order_id', 'medication_id'])` para impedir líneas duplicadas del mismo medicamento dentro de un mismo pedido; se quita el `default(0.00)` de `unit_price` para forzar un precio explícito.
+- **PHV-007**: `alerts.channel` — pasa de `string(20)` libre a `enum(['email','sms','whatsapp'])` a nivel de BD, alineado con `App\Enums\AlertChannel`. Se agrega `unique(['customer_id','order_id','lot_number','channel'])` (`uq_alert_dedupe`) para evitar alertas duplicadas ante reintentos.
+- **PHV-007**: `DatabaseSeeder` — `attach()` reemplazado por `syncWithoutDetaching()` y `Alert::factory()->create()` por `Alert::firstOrCreate()`, para que el seeder sea idempotente y no falle con `UniqueConstraintViolationException` al correrse más de una vez sin `migrate:fresh`.
