@@ -1,0 +1,693 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Pharmacovigilance API",
+        "description": "API REST Core para la gestión de retiros de lotes sanitarios, órdenes, clientes y alertas.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api/v1",
+            "description": "Servidor Principal API v1"
+        }
+    ],
+    "paths": {
+        "/alerts/send": {
+            "post": {
+                "tags": [
+                    "Alertas"
+                ],
+                "summary": "Procesar y enviar alertas de retiro de lote",
+                "description": "Envía notificaciones a los clientes asociados a las órdenes afectadas por un lote defectuoso. Valida la existencia del lote en la orden y previene notificaciones duplicadas por canal.",
+                "operationId": "324bbc966f6bfdb9da0afca8a6f0cd43",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "lot_number",
+                                    "order_ids",
+                                    "message"
+                                ],
+                                "properties": {
+                                    "lot_number": {
+                                        "type": "string",
+                                        "example": "951357"
+                                    },
+                                    "order_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2
+                                        ]
+                                    },
+                                    "channel": {
+                                        "type": "string",
+                                        "example": "email",
+                                        "enum": [
+                                            "email",
+                                            "sms",
+                                            "whatsapp"
+                                        ]
+                                    },
+                                    "message": {
+                                        "type": "string",
+                                        "example": "Estimado cliente, se ha detectado una novedad sanitaria en el lote 951357 de su medicamento."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Alertas procesadas correctamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Alertas procesadas."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "lot_number": {
+                                                    "type": "string",
+                                                    "example": "951357"
+                                                },
+                                                "sent": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    },
+                                                    "example": [
+                                                        1
+                                                    ]
+                                                },
+                                                "skipped_duplicate": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    },
+                                                    "example": []
+                                                },
+                                                "failed": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    },
+                                                    "example": []
+                                                },
+                                                "invalid_order_ids": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer"
+                                                    },
+                                                    "example": []
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflicto: Todas las órdenes indicadas ya habían sido notificadas previamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Las órdenes indicadas ya habían sido notificadas para este lote y canal."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Error de validación o ninguna orden contiene el lote especificado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Ninguna de las órdenes indicadas contiene el lote especificado."
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado (Token no provisto o inválido)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/login": {
+            "post": {
+                "tags": [
+                    "Autenticación"
+                ],
+                "summary": "Iniciar sesión de usuario",
+                "operationId": "72bf786ad8ff53c7391309c836350a8d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "example": "admin@farmacia.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Inicio de sesión exitoso"
+                    },
+                    "401": {
+                        "description": "Credenciales incorrectas"
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "tags": [
+                    "Autenticación"
+                ],
+                "summary": "Cerrar sesión de usuario",
+                "description": "Revoca el token de acceso actual del usuario autenticado.",
+                "operationId": "5660f1ae61b95f0283dfc205d5ffdad5",
+                "responses": {
+                    "200": {
+                        "description": "Sesión cerrada correctamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Sesión cerrada correctamente."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado (Token no provisto o inválido)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/customers/{customer}": {
+            "get": {
+                "tags": [
+                    "Clientes"
+                ],
+                "summary": "Obtener detalle de un cliente",
+                "description": "Devuelve los datos de perfil de un comprador registrado por su ID.",
+                "operationId": "978b36d9e308513d0a4441539631f572",
+                "parameters": [
+                    {
+                        "name": "customer",
+                        "in": "path",
+                        "description": "ID único del cliente",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalle del cliente obtenido exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Juan Pérez"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "juan.perez@email.com"
+                                                },
+                                                "phone": {
+                                                    "type": "string",
+                                                    "example": "+573001234567"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado (Token no provisto o inválido)"
+                    },
+                    "404": {
+                        "description": "Cliente no encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/medications/search": {
+            "get": {
+                "tags": [
+                    "Medicamentos"
+                ],
+                "summary": "Buscar medicamentos por lote y rango de fechas",
+                "description": "Permite filtrar medicamentos por coincidencia de prefijo de lote y opcionalmente por rango de fechas de compra de sus órdenes asociadas.",
+                "operationId": "53a87450d7ec2f3b7e839019ebae4097",
+                "parameters": [
+                    {
+                        "name": "lot",
+                        "in": "query",
+                        "description": "Número o prefijo del lote a buscar",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "951357"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Fecha inicial de filtro para las órdenes asociadas (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-01-01"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Fecha final de filtro para las órdenes asociadas (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-08-31"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Cantidad de registros por página (por defecto 15)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Búsqueda procesada correctamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Paracetamol 500mg"
+                                                    },
+                                                    "description": {
+                                                        "type": "string",
+                                                        "example": "Lote bajo investigación de farmacovigilancia"
+                                                    },
+                                                    "lot_number": {
+                                                        "type": "string",
+                                                        "example": "951357"
+                                                    },
+                                                    "orders_count": {
+                                                        "type": "integer",
+                                                        "example": 8
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object"
+                                        },
+                                        "meta": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado (Token no provisto o inválido)"
+                    },
+                    "422": {
+                        "description": "Error de validación en los parámetros de búsqueda"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/orders": {
+            "get": {
+                "tags": [
+                    "Órdenes"
+                ],
+                "summary": "Listar órdenes afectadas por lote y rango de fechas",
+                "description": "Obtiene una lista paginada de órdenes que contienen un número de lote específico, con la opción de filtrar por rango de fechas de compra.",
+                "operationId": "5894f7ae19272fefaf73e3a6f9d9782d",
+                "parameters": [
+                    {
+                        "name": "lot",
+                        "in": "query",
+                        "description": "Número de lote a investigar (Obligatorio)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "951357"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Fecha inicial de filtro (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-08-01"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Fecha final de filtro (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-08-23"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Cantidad de elementos por página (por defecto 15)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Listado de órdenes obtenido exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "purchase_date": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-08-15 10:30:00"
+                                                    },
+                                                    "customer_id": {
+                                                        "type": "integer",
+                                                        "example": 4
+                                                    },
+                                                    "alerts_count": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object"
+                                        },
+                                        "meta": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado (Token no provisto o inválido)"
+                    },
+                    "422": {
+                        "description": "Error de validación (Ej. falta el parámetro 'lot' o rango de fechas inválido)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/orders/{order}": {
+            "get": {
+                "tags": [
+                    "Órdenes"
+                ],
+                "summary": "Obtener detalle completo de una orden",
+                "description": "Devuelve los datos detallados de una orden de compra, incluyendo el cliente y los medicamentos asociados con sus cantidades y precios.",
+                "operationId": "f4375fed7d76265a3325423e2534e437",
+                "parameters": [
+                    {
+                        "name": "order",
+                        "in": "path",
+                        "description": "ID único de la orden",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalle de la orden obtenido exitosamente",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "purchase_date": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-08-15 10:30:00"
+                                                },
+                                                "customer": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 4
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Juan Pérez"
+                                                        },
+                                                        "email": {
+                                                            "type": "string",
+                                                            "example": "juan.perez@email.com"
+                                                        },
+                                                        "phone": {
+                                                            "type": "string",
+                                                            "example": "+573001234567"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "medications": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "Paracetamol 500mg"
+                                                            },
+                                                            "lot_number": {
+                                                                "type": "string",
+                                                                "example": "951357"
+                                                            },
+                                                            "pivot": {
+                                                                "properties": {
+                                                                    "quantity": {
+                                                                        "type": "integer",
+                                                                        "example": 2
+                                                                    },
+                                                                    "unit_price": {
+                                                                        "type": "string",
+                                                                        "example": "12500.00"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "alerts_count": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado (Token no provisto o inválido)"
+                    },
+                    "404": {
+                        "description": "Orden no encontrada"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "name": "Authorization",
+                "in": "header",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Alertas",
+            "description": "Alertas"
+        },
+        {
+            "name": "Autenticación",
+            "description": "Autenticación"
+        },
+        {
+            "name": "Clientes",
+            "description": "Clientes"
+        },
+        {
+            "name": "Medicamentos",
+            "description": "Medicamentos"
+        },
+        {
+            "name": "Órdenes",
+            "description": "Órdenes"
+        }
+    ]
+}
