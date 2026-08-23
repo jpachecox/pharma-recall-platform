@@ -14,6 +14,7 @@ y este proyecto usa [Conventional Commits](https://www.conventionalcommits.org/)
 - **PHV-002**: migraciones de las 6 tablas del MVP (customers, medications, orders, order_items, alerts) y de RBAC (permissions, roles, role_has_permissions, user_has_roles)
 - **PHV-003**: modelos Eloquent con relaciones y scopes (Order, OrderItem, Medication, Customer, Alert)
 - **PHV-005**: Sistema de autenticación de API utilizando Laravel Sanctum (Endpoints, protección de rutas y test de integración)
+- **PHV-006**: Definición del contrato de API v1 (`docs/api-contract.md`) con especificación de endpoints, códigos de estado HTTP y respuestas de error en inglés.
 
 ### Changed
 
