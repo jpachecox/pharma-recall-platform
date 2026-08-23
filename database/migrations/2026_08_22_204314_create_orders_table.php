@@ -17,7 +17,7 @@ return new class extends Migration
             $table->index(['purchase_date', 'customer_id'], 'idx_orders_date_customer');
             $table->timestamps();
 
-            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
+            $table->foreignId('customer_id')->constrained('customers')->restrictOnDelete();
         });
     }
 
