@@ -73,23 +73,23 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
 - **Endpoint:** `POST /api/v1/login`
 - **Request:**
 
-```json
+  ```json
   {
     "email": "admin@farmacia.com",
     "password": "SecretPassword123!"
   }
-```
+  ```
 
 - **Response (200 OK):**
 
-```json
+  ```json
   {
     "message": "Inicio de sesión exitoso.",
     "access_token": "1|token_hash_value",
     "token_type": "Bearer",
     "user": { "id": 1, "name": "Administrador Farmacovigilancia", "email": "admin@farmacia.com" }
   }
-```
+  ```
 
 #### Cierre de Sesión
 
@@ -100,33 +100,58 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
 
 ### 4.2 Búsqueda y Órdenes
 
+#### Buscar Medicamentos por Lote
+
+- **Endpoint:** `GET /api/v1/medications/search`
+- **Params:** `lot` (requerido), `start_date` (opcional, YYYY-MM-DD, default: hace 30 días), `end_date` (opcional, YYYY-MM-DD, default: hoy), `per_page`
+- **Ejemplo:** `GET /api/v1/medications/search?lot=951357&start_date=2026-07-21&end_date=2026-08-21`
+- Si se envía rango de fechas, solo retorna medicamentos con al menos una orden dentro de ese rango (confirma que el lote circuló en la ventana investigada).
+- **Response (200 OK):**
+
+  ```json
+  {
+    "data": [
+      {
+        "id": 1,
+        "name": "Paracetamol 500mg (Afectado)",
+        "description": "Lote bajo investigación de farmacovigilancia",
+        "lot_number": "951357",
+        "orders_count": 8
+      }
+    ],
+    "meta": { "current_page": 1, "per_page": 15, "total": 1 }
+  }
+  ```
+
 #### Listar / Buscar Órdenes por Lote
 
 - **Endpoint:** `GET /api/v1/orders`
-- **Params:** `lot` (requerido), `start_date` (opcional, YYYY-MM-DD), `end_date` (opcional, YYYY-MM-DD), `page`, `per_page`
+- **Params:** `lot` (requerido), `start_date` (opcional, YYYY-MM-DD, default: hace 30 días), `end_date` (opcional, YYYY-MM-DD, default: hoy), `per_page`
 - **Ejemplo:** `GET /api/v1/orders?lot=951357&start_date=2026-07-21&end_date=2026-08-21`
 - **Response (200 OK):**
 
   ```json
   {
-    "success": true,
     "data": [
       {
-        "order_id": 1052,
-        "order_number": "ORD-0001572",
-        "purchase_date": "2026-08-05 14:30:00",
+        "id": 1052,
+        "purchase_date": "2026-08-05T14:30:00Z",
         "customer": {
           "id": 482,
           "name": "Carlos Mendoza",
           "email": "carlos.mendoza@example.com",
           "phone": "+57 300 123 4567"
         },
-        "medication": {
-          "id": 12,
-          "name": "Amoxicilina 500mg Compuesta",
-          "lot_number": "951357"
-        },
-        "alerted": false
+        "medications": [
+          {
+            "id": 12,
+            "name": "Amoxicilina 500mg Compuesta",
+            "lot_number": "951357",
+            "quantity": 2,
+            "unit_price": "12500.00"
+          }
+        ],
+        "alerts_sent": 0
       }
     ],
     "meta": { "current_page": 1, "per_page": 15, "total": 45 }
@@ -136,10 +161,30 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
 #### Detalle de Orden
 
 - **Endpoint:** `GET /api/v1/orders/{id}`
+- **Response (200 OK):** misma forma que un item de `GET /orders`, con `customer` y `medications` precargados.
+- **Response (404 Not Found):** si el `{id}` no existe:
+
+  ```json
+  { "message": "Resource not found." }
+  ```
 
 #### Detalle de Cliente
 
 - **Endpoint:** `GET /api/v1/customers/{id}`
+- **Response (200 OK):**
+
+  ```json
+  {
+    "data": {
+      "id": 482,
+      "name": "Carlos Mendoza",
+      "email": "carlos.mendoza@example.com",
+      "phone": "+57 300 123 4567"
+    }
+  }
+  ```
+
+- **Response (404 Not Found):** igual que en Detalle de Orden.
 
 ---
 
@@ -148,27 +193,49 @@ Todos los endpoints retornan respuestas en formato `application/json` y están p
 #### Enviar Alerta
 
 - **Endpoint:** `POST /api/v1/alerts/send`
+- Soporta bulk alerting: uno o varios `order_ids` en la misma petición, todos deben pertenecer al `lot_number` indicado.
+- Solo persiste un registro en `alerts` cuando el correo se envía exitosamente — un fallo de envío no deja rastro en BD.
 - **Request:**
 
   ```json
   {
     "lot_number": "951357",
     "order_ids": [1052, 1053],
+    "channel": "email",
     "message": "Aviso de retiro de medicamento lote 951357. Favor suspender su uso e informar a la farmacia."
   }
   ```
 
-- **Response (200 OK):**
+  `channel` es opcional (default `email`; valores válidos: `email`, `sms`, `whatsapp`, alineados con `App\Enums\AlertChannel`).
+
+- **Response (200 OK)** — procesa cada orden y desglosa el resultado, para que un fallo o duplicado en una orden no oscurezca el éxito de las demás:
 
   ```json
   {
-    "success": true,
-    "message": "Alertas procesadas correctamente",
-    "data": { "sent_count": 2, "timestamp": "2026-08-21 22:43:00" }
+    "message": "Alertas procesadas.",
+    "data": {
+      "lot_number": "951357",
+      "sent": [1052],
+      "skipped_duplicate": [1053],
+      "failed": [],
+      "invalid_order_ids": []
+    }
   }
   ```
 
+- **Response (409 Conflict):** cuando todas las órdenes de la petición ya habían sido notificadas para ese lote y canal (nada nuevo que enviar).
+- **Response (422 Unprocessable Entity):** payload inválido, o ningún `order_id` corresponde al `lot_number` enviado.
+
 ---
+
+## 5 Instrucciones de Instalación y Configuración
+
+### 5.1 Requisitos Previos
+
+- PHP >= 8.2
+- Composer >= 2.x
+- Node.js >= 18.x & Yarn
+- MySQL >= 8.0
 
 ### 5.2 Pasos de Instalación
 
@@ -251,13 +318,19 @@ yarn type-check   # validación de tipos TypeScript (vue-tsc), sin generar archi
 
 ---
 
-### 7 Testing
+## 7 Testing
 
 ```bash
 php artisan test
 ```
 
-Cobertura mínima esperada: autenticación, búsqueda/filtros, orders (listado, detalle, 404, paginación), alerts (envío, validación, registro, fallo de envío).
+Cobertura implementada:
+
+- **Auth:** login válido/inválido, acceso no autenticado a rutas protegidas, logout.
+- **Medications:** búsqueda por lote (parcial), filtro por rango de fechas (incluye/excluye según haya orden en el rango), validación de `lot` requerido.
+- **Orders:** listado con paginación, filtro por lote y rango de fechas, detalle (`show`) con cliente y medicamentos precargados, `404` en orden inexistente, `401` sin autenticar.
+- **Customers:** detalle (`show`), `404` en cliente inexistente.
+- **Alerts:** envío individual y bulk, `409` ante reintento de una combinación ya notificada, `422` cuando ningún `order_id` corresponde al `lot_number`, verificación de que un fallo de envío **no** persiste el registro en `alerts`, verificación de que un envío exitoso sí lo persiste con `status = sent` y `sent_at` poblado.
 
 ---
 
